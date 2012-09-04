@@ -10,6 +10,7 @@ from taggit.forms import TagField
 from taggit.models import TaggedItem, GenericTaggedItemBase
 from taggit.utils import require_instance_manager
 from django.utils.encoding import force_unicode
+from django.conf import settings
 
 try:
     all
@@ -154,7 +155,17 @@ class _TaggableManager(models.Manager):
 
     def _lookup_kwargs(self):
         return self.through.lookup_kwargs(self.instance)
-
+    
+    if 'cacheops' in settings.INSTALLED_APPS:
+        
+        @require_instance_manager
+        def all(self):
+                from cacheops.query import cached_as
+                @cached_as(self.model.objects.get(pk=self.instance.pk))
+                def _all():
+                    return super(_TaggableManager, self).all().nocache()
+                return _all()
+    
     @require_instance_manager
     def add(self, *tags):
         tags = [ force_unicode(t) if not isinstance(t, self.through.tag_model()) else t for t in tags ]
